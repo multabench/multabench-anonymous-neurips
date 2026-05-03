@@ -1,5 +1,4 @@
 import subprocess
-from typing import Dict
 
 
 def get_current_commit_hash() -> str:
@@ -8,11 +7,3 @@ def get_current_commit_hash() -> str:
         return commit_hash[:7]
     except subprocess.CalledProcessError:
         return ""
-
-
-def wandb_run(exp_name: str, project: str) -> None:
-    pass
-
-
-def wandb_finish(d_summary: Dict):
-    print(d_summary)

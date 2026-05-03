@@ -22,7 +22,6 @@ from multabench.constants import DEVICE
 from multabench.datasets.all_datasets import MultimodalDatasetID, OpenMLDatasetID, is_image_dataset, is_text_dataset
 from multabench.dino.constants import DINO_SMALL, DINO_LARGE, DINO_MODEL_NAMES
 from multabench.e5.constants import E5_SMALL, E5_LARGE, E5_MODEL_NAMES, TF_IDF
-from multabench.utils.logging import wandb_run, wandb_finish
 
 BASELINES = [TabSTAR,
              CatBoost, XGBoost, LightGBM, RandomForest,
@@ -58,7 +57,6 @@ if __name__ == "__main__":
                                  "txt", "non_txt", "ft-txt", "ft-img-ft-txt"],
                         default="all")
     parser.add_argument('--target', type=str, default=None, help='Override target column. Append _discrete to discretize a numeric column into bins (multiclass).')
-    parser.add_argument('--project', type=str, default='multimodal_benchmark_filtering_attempts_0224')
     _dino = DinoTrainArgs()
     _e5 = E5TrainArgs()
     # DINO image encoder model selection
@@ -114,7 +112,6 @@ if __name__ == "__main__":
     if is_invalid_model_dataset_pair(model_name=args.model, dataset_id=dataset):
         exit()
     exp_name = f"{args.model}_{dataset.name}_{args.fold}"
-    wandb_run(exp_name=exp_name, project=args.project)
     dino_train_kwargs = dict(
         lora_rank=args.dino_rank,
         img_layers=args.dino_img_layers,
@@ -153,6 +150,6 @@ if __name__ == "__main__":
             pca_components=args.pca_components,
             no_pca=no_pca,
         )
-        wandb_finish(d_summary=ret)
+        print(ret)
     except MultimodalError as e:
         print(f"❌ {e} for dataset {dataset.name} and model {model.MODEL_NAME}")
