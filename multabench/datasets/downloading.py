@@ -28,12 +28,11 @@ def download_multimodal_dataset(dataset_id: MultimodalDatasetID, for_annotation:
 
 def download_dataset(dataset_id: MultimodalDatasetID, multimodal_state: MultimodalState | None = None, for_annotation: bool = False, target_override: str | None = None) -> MultimodalDataset:
     if isinstance(dataset_id, MulTaBenchDatasetID):
-        from multabench.benchmark.load import load_multabench_dataset, load_from_source
-        import importlib, importlib.util
-        _has_source = importlib.util.find_spec(f"multabench.benchmark.datasets.{dataset_id.name}") is not None
-        _module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}") if _has_source else None
-        if _module is not None and hasattr(_module, "_load_and_process"):
-            dataset = load_from_source(dataset_id, multimodal_state=multimodal_state)
+        import importlib
+        from multabench.benchmark.load import load_from_local_cache, load_multabench_dataset
+        module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}")
+        if hasattr(module, "_load_and_process"):
+            dataset = load_from_local_cache(dataset_id, multimodal_state=multimodal_state)
         else:
             dataset = load_multabench_dataset(dataset_id, multimodal_state=multimodal_state)
         if for_annotation:

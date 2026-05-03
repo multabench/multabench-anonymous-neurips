@@ -1,5 +1,6 @@
 import importlib
 import json
+import os
 import time
 from os.path import join
 from typing import Optional
@@ -13,6 +14,9 @@ from multabench.datasets.objects import SupervisedTask
 from multabench.benchmark.utils.constants import METADATA_JSON, DATA_CSV
 from multabench.benchmark.utils.curation import TASK_REG, task_type_from_name
 from multabench.preprocessing.feat_types import detect_text_features
+
+DATASET_CACHE_DIR = ".multabench_datasets"
+MULTABENCH_KAGGLE_USERNAME = "multabench"
 
 
 def _parse_task_type(meta: dict, dataset_id, y: pd.Series) -> SupervisedTask:
@@ -55,28 +59,32 @@ def _apply_multimodal_state(x: pd.DataFrame, image_col: Optional[str],
     raise MultimodalError(f"Unsupported multimodal_state for MulTaBench: {multimodal_state}")
 
 
-def load_from_source(dataset_id, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
-    module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}")
-    source = module.KAGGLE_SOURCE
-    if source.startswith("c/"):
-        dir_path = kagglehub.competition_download(source[2:])
-    else:
-        dir_path = kagglehub.dataset_download(source)
-    df = module._load_and_process(dir_path)
-    image_col = getattr(module, "IMAGE_COL", None)
-    image_subfolder = getattr(module, "IMAGE_SUBFOLDER", "")
-    image_folder = join(dir_path, image_subfolder) if image_subfolder else dir_path
-    target_col = module.TARGET_COL
+def _load_from_dir(dataset_id, dir_path: str, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
+    with open(join(dir_path, METADATA_JSON)) as f:
+        meta = json.load(f)
+    df = pd.read_csv(join(dir_path, DATA_CSV))
+    target_col = meta["target"]
+    image_col = meta["image_col"]
     y = df[target_col]
     x = df.drop(columns=[target_col])
     x = _apply_multimodal_state(x, image_col, multimodal_state)
-    return MultimodalDataset(x=x, y=y, task_type=_parse_task_type({}, dataset_id, y),
-                             dataset_id=dataset_id, image_folder=image_folder)
+    return MultimodalDataset(x=x, y=y, task_type=_parse_task_type(meta, dataset_id, y),
+                             dataset_id=dataset_id, image_folder=dir_path)
+
+
+def load_from_local_cache(dataset_id, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
+    cache_dir = os.path.join(DATASET_CACHE_DIR, dataset_id.name)
+    csv_path = os.path.join(cache_dir, DATA_CSV)
+    if not os.path.exists(csv_path):
+        print(f"Preparing {dataset_id.name} into local cache at {cache_dir} ...")
+        module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}")
+        module.curate(output_dir=cache_dir, slug="")
+    return _load_from_dir(dataset_id, dir_path=cache_dir, multimodal_state=multimodal_state)
 
 
 def load_multabench_dataset(dataset_id, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
     slug = dataset_id.value
-    kaggle_ref = f"{KAGGLE_USERNAME}/{slug}"
+    kaggle_ref = f"{MULTABENCH_KAGGLE_USERNAME}/{slug}"
     print(f"Downloading {kaggle_ref} from Kaggle...")
     for attempt in range(3):
         try:
@@ -85,22 +93,8 @@ def load_multabench_dataset(dataset_id, multimodal_state: Optional[MultimodalSta
         except FileNotFoundError as e:
             if attempt == 2:
                 raise
-            wait = 60 * (attempt + 1) * 5  # 5 min, 10 min
+            wait = 60 * (attempt + 1) * 5
             print(f"kagglehub archive bug (attempt {attempt + 1}/3): {e} — retrying in {wait // 60} min...")
             time.sleep(wait)
     print(f"💾 Downloaded to: {dir_path}")
-
-    with open(join(dir_path, METADATA_JSON)) as f:
-        meta = json.load(f)
-
-    df = pd.read_csv(join(dir_path, DATA_CSV))
-
-    target_col = meta["target"]
-    image_col = meta["image_col"]
-    image_folder = dir_path  # image paths in CSV already include "images/" prefix
-
-    y = df[target_col]
-    x = df.drop(columns=[target_col])
-    x = _apply_multimodal_state(x, image_col, multimodal_state)
-
-    return MultimodalDataset(x=x, y=y, task_type=_parse_task_type(meta, dataset_id, y), dataset_id=dataset_id, image_folder=image_folder)
+    return _load_from_dir(dataset_id, dir_path=dir_path, multimodal_state=multimodal_state)
