@@ -20,7 +20,9 @@ import pandas as pd
 from multabench.datasets.curation import MultimodalDataset
 from multabench.datasets.multimodal import MultimodalState, MultimodalError
 from multabench.datasets.objects import SupervisedTask
-from multabench.benchmark.utils.constants import KAGGLE_USERNAME, METADATA_JSON, DATA_CSV
+from multabench.benchmark.utils.constants import METADATA_JSON, DATA_CSV
+
+KAGGLE_USERNAME = "multabench"
 from multabench.benchmark.utils.curation import TASK_REG, task_type_from_name
 from multabench.preprocessing.feat_types import detect_text_features
 
