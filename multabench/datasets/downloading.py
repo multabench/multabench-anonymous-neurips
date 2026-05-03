@@ -28,12 +28,15 @@ def download_multimodal_dataset(dataset_id: MultimodalDatasetID, for_annotation:
 
 def download_dataset(dataset_id: MultimodalDatasetID, multimodal_state: MultimodalState | None = None, for_annotation: bool = False, target_override: str | None = None) -> MultimodalDataset:
     if isinstance(dataset_id, MulTaBenchDatasetID):
-        from multabench.benchmark.load import load_multabench_dataset
-        from multabench.benchmark.utils.constants import KAGGLE_USERNAME
-        dataset = load_multabench_dataset(dataset_id, multimodal_state=multimodal_state)
+        import importlib
+        from multabench.benchmark.load import load_from_local_cache, load_multabench_dataset
+        module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}")
+        if hasattr(module, "_load_and_process"):
+            dataset = load_from_local_cache(dataset_id, multimodal_state=multimodal_state)
+        else:
+            dataset = load_multabench_dataset(dataset_id, multimodal_state=multimodal_state)
         if for_annotation:
-            url = f"https://www.kaggle.com/datasets/{KAGGLE_USERNAME}/{dataset_id.value}"
-            get_dataset_description(name=dataset_id.name, url=url, x=dataset.x, y=dataset.y)
+            get_dataset_description(name=dataset_id.name, url="", x=dataset.x, y=dataset.y)
             raise SystemExit
         return dataset
     elif dataset_id.name in {d.name for d in KaggleDatasetID}:

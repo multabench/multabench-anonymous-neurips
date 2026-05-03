@@ -39,6 +39,7 @@ KAGGLE_SOURCE = "parthplc/facebook-hateful-meme-dataset"
 TARGET_COL = "label"
 IMAGE_COL = "img"
 DATA_SUBFOLDER = "data"
+IMAGE_SUBFOLDER = DATA_SUBFOLDER
 N_E5_DIMS = 20
 
 

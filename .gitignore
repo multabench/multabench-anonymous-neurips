@@ -5,6 +5,7 @@
 **/catboost_info/
 **/wandb/
 **/.tabstar_*/
+.multabench_datasets/
 **/temp_*/
 **/check_whl/
 
