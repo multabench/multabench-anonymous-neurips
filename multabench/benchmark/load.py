@@ -1,14 +1,4 @@
-"""
-Load a MulTaBench dataset directly from Kaggle.
-
-Downloads the already-curated dataset (data.csv + images/) using kagglehub
-and returns a MultimodalDataset, bypassing the original source and curation logic.
-
-Usage:
-    from multabench.datasets.all_datasets import MulTaBenchDatasetID
-    from multabench.benchmark.curation.load import load_multabench_dataset
-    dataset = load_multabench_dataset(MulTaBenchDatasetID.MUL_IMAGE_LEAGUE_OF_LEGENDS_SKIN_CATEGORY)
-"""
+import importlib
 import json
 import time
 from os.path import join
@@ -21,8 +11,6 @@ from multabench.datasets.curation import MultimodalDataset
 from multabench.datasets.multimodal import MultimodalState, MultimodalError
 from multabench.datasets.objects import SupervisedTask
 from multabench.benchmark.utils.constants import METADATA_JSON, DATA_CSV
-
-KAGGLE_USERNAME = "multabench"
 from multabench.benchmark.utils.curation import TASK_REG, task_type_from_name
 from multabench.preprocessing.feat_types import detect_text_features
 
@@ -65,6 +53,25 @@ def _apply_multimodal_state(x: pd.DataFrame, image_col: Optional[str],
             raise MultimodalError("No features left after dropping text columns")
         return x
     raise MultimodalError(f"Unsupported multimodal_state for MulTaBench: {multimodal_state}")
+
+
+def load_from_source(dataset_id, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
+    module = importlib.import_module(f"multabench.benchmark.datasets.{dataset_id.name}")
+    source = module.KAGGLE_SOURCE
+    if source.startswith("c/"):
+        dir_path = kagglehub.competition_download(source[2:])
+    else:
+        dir_path = kagglehub.dataset_download(source)
+    df = module._load_and_process(dir_path)
+    image_col = getattr(module, "IMAGE_COL", None)
+    image_subfolder = getattr(module, "IMAGE_SUBFOLDER", "")
+    image_folder = join(dir_path, image_subfolder) if image_subfolder else dir_path
+    target_col = module.TARGET_COL
+    y = df[target_col]
+    x = df.drop(columns=[target_col])
+    x = _apply_multimodal_state(x, image_col, multimodal_state)
+    return MultimodalDataset(x=x, y=y, task_type=_parse_task_type({}, dataset_id, y),
+                             dataset_id=dataset_id, image_folder=image_folder)
 
 
 def load_multabench_dataset(dataset_id, multimodal_state: Optional[MultimodalState] = None) -> MultimodalDataset:
