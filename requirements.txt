@@ -903,8 +903,6 @@ urllib3==2.5.0
     #   sentry-sdk
 virtualenv==21.2.0
     # via ray
-wandb==0.23.0
-    # via -r requirements.in
 watchdog==6.0.0
     # via streamlit
 wcwidth==0.6.0
